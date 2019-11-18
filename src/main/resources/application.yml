@@ -1,0 +1,32 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          lower-case-service-id: true
+    stream:
+      bindings:
+        transactionChannel:
+          destination: sendTransaction
+      default:
+        contentType: application/json
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${DISCOVERY_HOST:${HOST:localhost}}:${DISCOVERY_PORT:8761}/eureka/
+      lease:
+        duration: 5
+ribbon:
+  http:
+    client:
+      enabled: true
