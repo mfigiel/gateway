@@ -51,7 +51,7 @@ public abstract class AbstractIntegrationContainerTest extends DockerEnvironment
     private void setUp() {
         webTestClient = WebTestClient.bindToServer()
                 .baseUrl("http://localhost:" + APPLICATION_PORT)
-                .responseTimeout(Duration.ofSeconds(60)).build();
+                .responseTimeout(Duration.ofSeconds(90)).build();
 
         warehouseClient.setWarehouseAddress("http://localhost:" + WAREHOUSE_PORT);
         serviceClient.setClientServiceAddress("http://localhost:" + CLIENTS_PORT);

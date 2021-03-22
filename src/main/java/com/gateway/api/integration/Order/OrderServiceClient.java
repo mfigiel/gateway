@@ -17,6 +17,8 @@ public class OrderServiceClient {
     private static final String SINGLE_ORDER_ENDPOINT = "/order/";
     private static final String ALL_ORDERS_ENDPOINT = "/orders";
     private static final String ADD_ORDER_ENDPOINT = "/orders";
+    private static final String UPDATE_ORDER_STATE_ENDPOINT = "/updateStateOrder";
+    private static final String GET_ORDER_STATE_ENDPOINT = "/orderState/order/";
     private String orderServiceAddress = "http://orders";
 
     @Autowired
@@ -44,6 +46,16 @@ public class OrderServiceClient {
                 .stream()
                 .forEach(e -> orderDto.getProducts().add(e.getId().toString()));
         return orderDto;
+    }
+
+    public String getOrderState(Long id){
+        return loadBalancedRestTemplate.getForObject(orderServiceAddress + GET_ORDER_STATE_ENDPOINT + id, String.class);
+    }
+
+    public void updateStateOrder(UpdateStateOrderApi updateOrderStateApi){
+        loadBalancedRestTemplate.postForObject(orderServiceAddress + UPDATE_ORDER_STATE_ENDPOINT
+                , new HttpEntity<>(updateOrderStateApi), Void.class);
+
     }
 
     public void setOrderServiceAddress(String orderServiceAddress) {

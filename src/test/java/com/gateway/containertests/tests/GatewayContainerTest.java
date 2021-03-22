@@ -1,36 +1,41 @@
 package com.gateway.containertests.tests;
 
+import com.gateway.api.integration.Order.UpdateStateOrderApi;
 import com.gateway.api.integration.Warehouse.BuyProductsRequest;
 import com.gateway.api.resource.*;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.*;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.test.context.ActiveProfiles;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.time.Duration;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@AutoConfigureWebTestClient(timeout = "90000")
 public class GatewayContainerTest extends AbstractIntegrationContainerTest {
 
-    @Order(1)
+    public static final String SUBMITTED_STATE = "SUBMITTED";
+    public static final String FULL_FILL_STATE = "fullFill";
+
     @Test
     void getProductsFromEmptyDatabase() {
-        getAllProductsFromEmptyDatabase();
 
         webTestClient.get()
-                .uri("/product/1")
+                .uri("/product/178")
                 .exchange()
                 .expectStatus()
                 .is5xxServerError();
 
         webTestClient.post()
                 .uri("/buyProduct")
-                .body(Mono.just(BuyProductsRequest.builder().productsId(new ArrayList<>(Arrays.asList(1L))).build()), BuyProductsRequest.class)
+                .body(Mono.just(BuyProductsRequest.builder().productsId(new ArrayList<>(Arrays.asList(178L))).build()), BuyProductsRequest.class)
                 .exchange()
                 .expectStatus().is4xxClientError()
                 .expectBody()
@@ -39,25 +44,59 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
 
     @Test
     void addProductAndBuy() {
-        getAllProductsFromEmptyDatabase();
+        ProductApi productApi = getSampleProduct();
+        addProductToWarehouse(productApi);
 
-        addProductToWarehouse(getSampleProduct());
-
-        getAllProductsFromDatabase();
+        getAllProductsFromDatabase(productApi.getDescription());
 
         buyProduct();
 
-        getAllProductsFromDatabaseAfterBuyOperation();
+        getAllProductsFromDatabaseAfterBuyOperation(productApi);
     }
 
-    private void getAllProductsFromDatabaseAfterBuyOperation() {
+    @Test
+    void addProductAndBuyAndCheckOrderState() {
+        ProductApi productApi = getSampleProduct();
+        addProductToWarehouse(productApi);
+
+        getAllProductsFromDatabase(productApi.getDescription());
+
+        buyProduct();
+
+        getAllProductsFromDatabaseAfterBuyOperation(productApi);
+
+        getOrderState(1L, SUBMITTED_STATE);
+        updateState(1L, FULL_FILL_STATE, null);
+        getOrderState(1L, FULL_FILL_STATE);
+    }
+
+    private void getOrderState(Long orderId, String exceptedState) {
+        webTestClient.get()
+                .uri("/orderState/order/" + orderId)
+                .exchange()
+                .expectStatus()
+                .is2xxSuccessful()
+                .expectBody()
+                .consumeWith(response -> {
+                    Object o = response.getResponseBody();
+                    assertThat(o).isNotNull();
+                });
+    }
+
+    private void getAllProductsFromDatabaseAfterBuyOperation(ProductApi product) {
         webTestClient.get()
                 .uri("/products")
                 .exchange()
                 .expectStatus()
                 .is2xxSuccessful()
-                .expectBody()
-                .json("[{\"id\":1,\"name\":\"name\",\"unitPrice\":10.00,\"description\":\"description\",\"category\":\"category\",\"unitsInStock\":9,\"unitsInOrder\":1,\"state\":\"BOUGHT\"}]");
+                .expectBody(new ParameterizedTypeReference<List<ProductApi>>() {})
+                .value(productList ->{
+                    List<ProductApi> filteredProductList = productList.stream()
+                        .filter(productApi -> productApi.getDescription().equals(product.getDescription()))
+                        .collect(Collectors.toList());
+                    assertThat(filteredProductList.size()).isEqualTo(1);
+                    assertThat(filteredProductList.get(0).getDescription()).isEqualTo(product.getDescription());
+                        });
     }
 
     private void buyProduct() {
@@ -69,7 +108,17 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
                 .isOk()
                 .returnResult(Transaction.class)
                 .getResponseBody()
-                .doOnNext(transactionResult -> assertThat(verifyTransaction(transactionResult)).isTrue());
+                .doOnNext(transactionResult -> assertThat(verifyTransaction(transactionResult)).isTrue())
+                .timeout(Duration.ofMillis(90000));
+    }
+
+    private void updateState(Long orderId, String orderState, String paymentConfirmationNumber) {
+        webTestClient.post()
+                .uri("/updateOrderState")
+                .body(Mono.just(createSampleUpdateOrderStateObject(orderId, orderState, paymentConfirmationNumber)), UpdateStateOrderApi.class)
+                .exchange()
+                .expectStatus()
+                .isOk();
     }
 
 
@@ -90,13 +139,14 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
         return false;
     }
 
-    private void getAllProductsFromDatabase() {
+    private void getAllProductsFromDatabase(String description) {
         webTestClient.get()
                 .uri("/products")
                 .exchange()
                 .expectStatus().is2xxSuccessful()
-                .expectBody()
-                .json("[{\"id\":1,\"name\":\"name\",\"unitPrice\":10.00,\"description\":\"description\",\"category\":\"category\",\"unitsInStock\":10,\"unitsInOrder\":0,\"state\":\"BOUGHT\"}]");
+                .expectBody(new ParameterizedTypeReference<List<ProductApi>>() {
+                })
+                .value(productList -> assertThat(productList.stream().anyMatch(productApi -> productApi.getDescription().equals(description))).isTrue());
     }
 
     private void addProductToWarehouse(ProductApi product) {
@@ -107,15 +157,6 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .json("");
-    }
-
-    private void getAllProductsFromEmptyDatabase() {
-        webTestClient.get()
-                .uri("/products")
-                .exchange()
-                .expectStatus().is2xxSuccessful()
-                .expectBody()
-                .json("[]");
     }
 
     @NotNull
@@ -129,6 +170,16 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
         transaction.setOrder(orderApi);
         transaction.setClient(getSampleClientApi());
         return transaction;
+    }
+
+    @NotNull
+    private UpdateStateOrderApi createSampleUpdateOrderStateObject( Long orderId, String newState, String paymentConfirmationNumber) {
+        UpdateStateOrderApi updateStateOrderApi = new UpdateStateOrderApi();
+        updateStateOrderApi.setOrderState(newState);
+        updateStateOrderApi.setOrderId(orderId);
+        updateStateOrderApi.setPaymentConfirmationNumber(paymentConfirmationNumber);
+
+        return updateStateOrderApi;
     }
 
     @NotNull
@@ -151,10 +202,11 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
     }
 
     private ProductApi getSampleProduct() {
+        UUID uuid = UUID.randomUUID();
         return ProductApi.builder()
                 .name("name")
                 .category("category")
-                .description("description")
+                .description(uuid.toString())
                 .unitPrice(new BigDecimal(10))
                 .unitsInStock(10L)
                 .unitsInOrder(0L)
