@@ -1,4 +1,4 @@
-package com.gateway.api.integration.Warehouse;
+package com.gateway.api.integration.warehouse;
 
 import com.gateway.api.resource.ProductApi;
 import lombok.Builder;
@@ -10,5 +10,5 @@ import java.util.List;
 @Value
 @Builder
 public class BuyProductsResponse {
-    public List<ProductApi> products = new ArrayList<>();
+    private List<ProductApi> products = new ArrayList<>();
 }

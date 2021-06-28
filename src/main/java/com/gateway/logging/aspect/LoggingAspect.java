@@ -13,22 +13,22 @@ public class LoggingAspect {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggingAspect.class);
 
-    @Around("(execution(* com.gateway.api.controller..*(..)))")
+   // @Around("(execution(* com.gateway.api.controller..*(..)))")
     public Object log(ProceedingJoinPoint jp) throws Throwable {
         Object result;
         final long start = System.currentTimeMillis();
         try {
-            result = jp.proceed();
-            long executionTime = System.currentTimeMillis() - start;
-            LOGGER.info("{} {} took {} milliseconds",
-                    logString(result), jp.getSignature().toShortString(), executionTime);
+        result = jp.proceed();
+        long executionTime = System.currentTimeMillis() - start;
+        LOGGER.info("{} {} took {} milliseconds",
+                logString(result), jp.getSignature().toShortString(), executionTime);
 
         } catch (final Throwable ex) {
-            LOGGER.warn("{} threw {} took {} milliseconds",
-                    jp.getSignature().toShortString(), ex.getClass().getSimpleName(),
-                    (System.currentTimeMillis() - start));
-            throw ex;
-        }
+             LOGGER.warn("{} threw {} took {} milliseconds",
+                     jp.getSignature().toShortString(), ex.getClass().getSimpleName(),
+                     (System.currentTimeMillis() - start));
+              throw ex;
+          }
         return result;
     }
 

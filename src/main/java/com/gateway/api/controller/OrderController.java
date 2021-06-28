@@ -1,6 +1,6 @@
 package com.gateway.api.controller;
 
-import com.gateway.api.integration.Order.UpdateStateOrderApi;
+import com.gateway.api.integration.order.UpdateStateOrderApi;
 import com.gateway.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

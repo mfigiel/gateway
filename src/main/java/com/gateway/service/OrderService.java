@@ -1,13 +1,10 @@
 package com.gateway.service;
 
-import com.gateway.api.integration.Order.OrderServiceClient;
-import com.gateway.api.integration.Order.UpdateStateOrderApi;
-import com.gateway.api.resource.ProductApi;
+import com.gateway.api.integration.order.OrderServiceClient;
+import com.gateway.api.integration.order.UpdateStateOrderApi;
 import com.gateway.api.resource.Transaction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

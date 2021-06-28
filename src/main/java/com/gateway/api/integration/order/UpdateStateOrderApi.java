@@ -1,4 +1,4 @@
-package com.gateway.api.integration.Order;
+package com.gateway.api.integration.order;
 
 import lombok.Data;
 

@@ -1,14 +1,12 @@
 package com.gateway.containertests.tests;
 
-import com.gateway.api.integration.Order.UpdateStateOrderApi;
-import com.gateway.api.integration.Warehouse.BuyProductsRequest;
+import com.gateway.api.integration.order.UpdateStateOrderApi;
+import com.gateway.api.integration.warehouse.BuyProductsRequest;
 import com.gateway.api.resource.*;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.test.context.ActiveProfiles;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -19,10 +17,13 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @AutoConfigureWebTestClient(timeout = "90000")
-public class GatewayContainerTest extends AbstractIntegrationContainerTest {
+class GatewayContainerTest extends AbstractIntegrationContainerTest {
 
-    public static final String SUBMITTED_STATE = "SUBMITTED";
-    public static final String FULL_FILL_STATE = "fullFill";
+    private static final String SUBMITTED_STATE = "SUBMITTED";
+    private static final String FULL_FILL_STATE = "fullFill";
+    private static final long BASE_UNITS_IN_STOCK = 10L;
+    private static final long BASE_UNITS_IN_ORDER = 0L;
+    private static final int BASE_PRODUCT_PRICE = 10;
 
     @Test
     void getProductsFromEmptyDatabase() {
@@ -51,7 +52,29 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
 
         buyProduct();
 
+        getTransactions(1L);
+
         getAllProductsFromDatabaseAfterBuyOperation(productApi);
+    }
+
+    @Test
+    void buyNotExistingProduct() {
+        buyNoExistingProduct();
+    }
+
+    @Test
+    void getTransactionByNotExistingClient() {
+        webTestClient.get()
+                .uri("/transaction/" + 0)
+                .exchange()
+                .expectStatus()
+                .is2xxSuccessful()
+                .returnResult(new ParameterizedTypeReference<List<Object>>() {
+                })
+                .getResponseBody()
+                .doOnNext(transactionList -> {
+                    assertThat(transactionList.size()).isZero();
+                });
     }
 
     @Test
@@ -70,16 +93,29 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
         getOrderState(1L, FULL_FILL_STATE);
     }
 
-    private void getOrderState(Long orderId, String exceptedState) {
+    private void getOrderState(Long orderId, String expectedState) {
         webTestClient.get()
                 .uri("/orderState/order/" + orderId)
                 .exchange()
                 .expectStatus()
                 .is2xxSuccessful()
-                .expectBody()
-                .consumeWith(response -> {
-                    Object o = response.getResponseBody();
-                    assertThat(o).isNotNull();
+                .returnResult(String.class)
+                .getResponseBody()
+                .doOnNext(orderState -> assertThat(orderState).isEqualTo(expectedState));
+    }
+
+
+    private void getTransactions(Long clientId) {
+        webTestClient.get()
+                .uri("/transaction/" + clientId)
+                .exchange()
+                .expectStatus()
+                .is2xxSuccessful()
+                .returnResult(new ParameterizedTypeReference<List<Object>>() {
+                })
+                .getResponseBody()
+                .doOnNext(transactionList -> {
+                    assertThat(transactionList.size()).isPositive();
                 });
     }
 
@@ -94,15 +130,15 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
                     List<ProductApi> filteredProductList = productList.stream()
                         .filter(productApi -> productApi.getDescription().equals(product.getDescription()))
                         .collect(Collectors.toList());
-                    assertThat(filteredProductList.size()).isEqualTo(1);
-                    assertThat(filteredProductList.get(0).getDescription()).isEqualTo(product.getDescription());
+                    assertThat(filteredProductList.size()).isPositive();
+                    assertThat(filteredProductList.stream().anyMatch(filteredProduct -> filteredProduct.getDescription().equals(product.getDescription())));
                         });
     }
 
     private void buyProduct() {
         webTestClient.post()
                 .uri("/buyProduct")
-                .body(Mono.just(createSampleTransaction()), Transaction.class)
+                .body(Mono.just(createSampleTransaction(1L)), Transaction.class)
                 .exchange()
                 .expectStatus()
                 .isOk()
@@ -110,6 +146,15 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
                 .getResponseBody()
                 .doOnNext(transactionResult -> assertThat(verifyTransaction(transactionResult)).isTrue())
                 .timeout(Duration.ofMillis(90000));
+    }
+
+    private void buyNoExistingProduct() {
+        webTestClient.post()
+                .uri("/buyProduct")
+                .body(Mono.just(createSampleTransaction(100L)), Transaction.class)
+                .exchange()
+                .expectStatus()
+                .is5xxServerError();
     }
 
     private void updateState(Long orderId, String orderState, String paymentConfirmationNumber) {
@@ -130,8 +175,8 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
 
         final ProductApi productApi = order.getProducts().stream().findFirst().get();
         if (order.getId() == 1 && transaction.getClient().getId() == 1
-                && productApi.getUnitsInOrder() == 1
-                && productApi.getUnitsInStock() == 9
+                && productApi.getUnitsInOrder() == (BASE_UNITS_IN_ORDER + 1)
+                && productApi.getUnitsInStock() == (BASE_UNITS_IN_STOCK - 1)
                 && productApi.getState().equals(ProductState.BOUGHT)) {
             return true;
         }
@@ -160,12 +205,12 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
     }
 
     @NotNull
-    private Transaction createSampleTransaction() {
+    private Transaction createSampleTransaction(Long productId) {
         Transaction transaction = new Transaction();
         OrderApi orderApi = new OrderApi();
         List<ProductApi> productApiList = new ArrayList<>();
 
-        productApiList.add(ProductApi.builder().id(1L).build());
+        productApiList.add(ProductApi.builder().id(productId).build());
         orderApi.setProducts(productApiList);
         transaction.setOrder(orderApi);
         transaction.setClient(getSampleClientApi());
@@ -201,15 +246,16 @@ public class GatewayContainerTest extends AbstractIntegrationContainerTest {
         return addressApi;
     }
 
+    @NotNull
     private ProductApi getSampleProduct() {
         UUID uuid = UUID.randomUUID();
         return ProductApi.builder()
                 .name("name")
                 .category("category")
                 .description(uuid.toString())
-                .unitPrice(new BigDecimal(10))
-                .unitsInStock(10L)
-                .unitsInOrder(0L)
+                .unitPrice(new BigDecimal(BASE_PRODUCT_PRICE))
+                .unitsInStock(BASE_UNITS_IN_STOCK)
+                .unitsInOrder(BASE_UNITS_IN_ORDER)
                 .build();
     }
 

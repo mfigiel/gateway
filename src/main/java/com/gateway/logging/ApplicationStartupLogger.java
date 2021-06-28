@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.context.annotation.PropertySources;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -15,10 +14,8 @@ import java.lang.management.RuntimeMXBean;
 import java.util.Date;
 
 @Component
-@PropertySources({
-        @PropertySource("classpath:git.properties"),
-        @PropertySource("classpath:META-INF/build-info.properties")
-})
+@PropertySource("classpath:git.properties")
+@PropertySource("classpath:META-INF/build-info.properties")
 public class ApplicationStartupLogger implements
         ApplicationListener<ApplicationReadyEvent> {
 

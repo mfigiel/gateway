@@ -1,4 +1,4 @@
-package com.gateway.api.integration.Warehouse;
+package com.gateway.api.integration.warehouse;
 
 import lombok.Builder;
 import lombok.Value;

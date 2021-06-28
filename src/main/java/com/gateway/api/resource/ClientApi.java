@@ -16,7 +16,7 @@ public class ClientApi {
     @NotEmpty
     private String name;
     @NotEmpty
-    private String Surname;
+    private String surname;
     @AddressValidation
     private AddressApi address;
 

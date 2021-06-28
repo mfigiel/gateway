@@ -2,8 +2,8 @@ package com.gateway.containertests.tests;
 
 import com.gateway.GatewayApplication;
 import com.gateway.api.integration.ClientServiceClient;
-import com.gateway.api.integration.Order.OrderServiceClient;
-import com.gateway.api.integration.Warehouse.WarehouseClient;
+import com.gateway.api.integration.order.OrderServiceClient;
+import com.gateway.api.integration.warehouse.WarehouseClient;
 import com.gateway.containertests.configuration.DockerEnvironmentConfiguration;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.BeforeAll;

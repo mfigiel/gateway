@@ -1,8 +1,8 @@
 package com.gateway.service;
 
-import com.gateway.api.integration.Warehouse.BuyProductsRequest;
-import com.gateway.api.integration.Warehouse.BuyProductsResponse;
-import com.gateway.api.integration.Warehouse.WarehouseClient;
+import com.gateway.api.integration.warehouse.BuyProductsRequest;
+import com.gateway.api.integration.warehouse.BuyProductsResponse;
+import com.gateway.api.integration.warehouse.WarehouseClient;
 import com.gateway.api.resource.ProductApi;
 import com.gateway.api.resource.ProductState;
 import com.gateway.api.resource.Transaction;
@@ -27,19 +27,8 @@ public class WarehouseService {
     }
 
     public BuyProductsResponse buyProducts(Transaction transaction) {
-        List<Long> productsId = transaction.getOrder().getProducts().stream().map(products -> products.getId()).collect(Collectors.toList());
+        List<Long> productsId = transaction.getOrder().getProducts().stream().map(ProductApi::getId).collect(Collectors.toList());
         return warehouseClient.buyProduct(BuyProductsRequest.builder().productsId(productsId).build());
-    }
-
-    private boolean verifyTransaction(Transaction transaction) {
-        if (transaction.getClient() != null && transaction.getOrder() != null
-                && transaction.getOrder().getProducts() != null &&
-                transaction.getClient().getId() != null &&
-                transaction.getOrder().getProducts().stream().noneMatch(productApi -> productApi == null)) {
-            return true;
-        }
-
-        return false;
     }
 
     public ProductApi getProduct(long id) {

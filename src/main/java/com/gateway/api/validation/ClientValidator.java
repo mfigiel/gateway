@@ -12,15 +12,4 @@ public class ClientValidator implements ConstraintValidator<ClientValidation, Cl
         return client != null && client.getAddress()!= null && client.getName()!= null
                 && client.getSurname() != null;
     }
-
-    private boolean isNotNullAndNotEmpty(String field) {
-        return field != null && !field.isEmpty();
-    }
-
-    void buildConstraint(ConstraintValidatorContext context, String message) {
-        context.disableDefaultConstraintViolation();
-        context
-                .buildConstraintViolationWithTemplate(message)
-                .addConstraintViolation();
-    }
 }

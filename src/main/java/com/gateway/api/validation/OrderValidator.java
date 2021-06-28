@@ -13,14 +13,4 @@ public class OrderValidator implements ConstraintValidator<OrderValidation, Orde
                 && !order.getProducts().isEmpty();
     }
 
-    private boolean isNotNullAndNotEmpty(String field) {
-        return field != null && !field.isEmpty();
-    }
-
-    void buildConstraint(ConstraintValidatorContext context, String message) {
-        context.disableDefaultConstraintViolation();
-        context
-                .buildConstraintViolationWithTemplate(message)
-                .addConstraintViolation();
-    }
 }
