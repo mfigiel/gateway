@@ -16,6 +16,7 @@ public class GlobalControllerAdvice
 
     @ExceptionHandler(value = {EntityNotFoundException.class})
     protected ResponseEntity<Object> handleEntityNotFound(EntityNotFoundException ex, WebRequest request) {
+        
         String bodyOfResponse = "Product not found";
         return handleExceptionInternal(ex, bodyOfResponse,
                 new HttpHeaders(), HttpStatus.NOT_FOUND, request);
