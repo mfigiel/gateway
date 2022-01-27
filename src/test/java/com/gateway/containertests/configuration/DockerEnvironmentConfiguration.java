@@ -36,7 +36,7 @@ public class DockerEnvironmentConfiguration {
     }
 
     static {
-        File dockerFile = new File("C:/source/testing/docker-compose-test.yml");
+        File dockerFile = new File("D:/programowanie/docker-compose-test.yml");
 
         try {
             if (isLocal() && !useExistingEnv() && dockerFileExists(dockerFile)) {
@@ -81,8 +81,7 @@ public class DockerEnvironmentConfiguration {
     }
 
     public static boolean isLocal() {
-        return System.getProperty("local") != null
-                || Objects.equals(System.getenv("local"), "true");
+        return true;
     }
 
     public static boolean useExistingEnv() {
